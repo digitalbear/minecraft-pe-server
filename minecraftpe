@@ -1,0 +1,54 @@
+#!/bin/sh
+#	
+#	PocketMine Run as a Service script
+#	
+. /lib/lsb/init-functions
+
+DAEMON="/home/minecraft/server/"
+SCRIPT="./start.sh"
+LOG_FILE="$DAEMON/daemon.log"
+USER="minecraft" 
+LOCK_FILE="$DAEMON/minecraftPE.Locked"
+ 
+do_start()
+{
+        if [ ! -f "$LOCK_FILE" ] ; then
+                echo -n $"Starting $SERVER: "
+                su - $USER -l "$USER" -c "$DAEMON$SCRIPT >> $LOG_FILE &" && log_success_msg || log_failure_msg
+                RETVAL=$?
+                echo
+                [ $RETVAL -eq 0 ] && touch $LOCK_FILE
+        else
+                echo "$SERVER is locked."
+                RETVAL=1
+        fi
+}
+do_stop()
+{
+        echo -n $"Stopping $SERVER: "
+        #pid=`ps -aefw | grep "$DAEMON$Script" | grep -v " grep " | awk '{print $2}'`
+	pid=`ps -u minecraft | grep "php" | grep -v " grep " | awk '{print $1}'`
+
+        kill -9 $pid > /dev/null 2>&1 && log_success_msg || log_failure_msg
+        RETVAL=$?
+        echo
+        [ $RETVAL -eq 0 ] && rm -f $LOCK_FILE
+}
+ 
+case "$1" in
+        start)
+                do_start
+                ;;
+        stop)
+                do_stop
+                ;;
+        restart)
+                do_stop
+                do_start
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart}"
+                RETVAL=1
+esac
+ 
+exit $RETVAL
